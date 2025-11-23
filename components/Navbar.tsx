@@ -4,6 +4,7 @@ import HomeIcon from './icons/HomeIcon';
 import ChartBarIcon from './icons/ChartBarIcon';
 import ChatBubbleIcon from './icons/ChatBubbleIcon';
 import BookIcon from './icons/BookIcon';
+import ClipboardListIcon from './icons/ClipboardListIcon';
 
 interface NavbarProps {
   activeView: AppView;
@@ -12,9 +13,10 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => {
   const navItems = [
-    { id: 'timetable', label: '홈', icon: HomeIcon },
     { id: 'major', label: '전공', icon: ChartBarIcon },
     { id: 'liberal', label: '교양', icon: BookIcon },
+    { id: 'timetable', label: '홈', icon: HomeIcon },
+    { id: 'board', label: '게시판', icon: ClipboardListIcon },
     { id: 'chatbot', label: 'AI 채팅', icon: ChatBubbleIcon },
   ] as const;
 
@@ -27,8 +29,8 @@ const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pb-safe z-50">
-        <div className="flex justify-around items-center h-16 max-w-3xl mx-auto">
-          {navItems.map((item) => (
+        <div className="flex justify-around items-center h-16 max-w-3xl mx-auto px-1">
+          {navItems.map((item, index) => (
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
@@ -39,12 +41,12 @@ const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => {
               }`}
             >
               <item.icon 
-                className={`h-6 w-6 transition-transform duration-200 ${
+                className={`transition-transform duration-200 ${
                     activeView === item.id ? 'scale-110' : ''
-                }`} 
+                } ${item.id === 'timetable' ? 'w-7 h-7' : 'w-6 h-6'}`} 
                 strokeWidth={activeView === item.id ? 2.5 : 2}
               />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className={`text-[10px] font-medium ${item.id === 'timetable' ? 'font-bold' : ''}`}>{item.label}</span>
             </button>
           ))}
         </div>
