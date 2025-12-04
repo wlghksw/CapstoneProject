@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { getLiberalArtsRecommendation } from '../services/geminiService';
 import BookIcon from './icons/BookIcon';
 
 const LiberalArtsRecommender: React.FC = () => {
@@ -22,8 +21,8 @@ const LiberalArtsRecommender: React.FC = () => {
     setIsLoading(true);
     setResultText('');
     try {
-        const result = await getLiberalArtsRecommendation(keywords, purpose, style);
-        setResultText(result);
+        // Gemini 서비스가 제거되었습니다.
+        setError('AI 서비스가 비활성화되었습니다.');
     } catch (e) {
         setError('추천을 불러오는 중 오류가 발생했습니다.');
     } finally {

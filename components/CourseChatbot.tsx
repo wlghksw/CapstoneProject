@@ -1,24 +1,17 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Message } from '../types';
-import { createCourseChat, continueCourseChatStream } from '../services/geminiService';
 import RobotIcon from './icons/RobotIcon';
 import PlusIcon from './icons/PlusIcon';
-import { Chat } from '@google/genai';
 
 const CourseChatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'initial', text: '안녕하세요! 어떤 종류의 교양 과목을 찾고 계신가요? 관심사를 알려주시면 추천해 드릴게요.', sender: 'ai' }
+    { id: 'initial', text: '안녕하세요! AI 서비스가 비활성화되어 있습니다.', sender: 'ai' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    chatRef.current = createCourseChat();
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,7 +20,7 @@ const CourseChatbot: React.FC = () => {
   const handleSend = useCallback(async (textOverride?: string) => {
     const textToSend = typeof textOverride === 'string' ? textOverride : input;
     
-    if (!textToSend.trim() || !chatRef.current) return;
+    if (!textToSend.trim()) return;
 
     const userMessage: Message = { id: Date.now().toString(), text: textToSend, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -40,27 +33,16 @@ const CourseChatbot: React.FC = () => {
     setIsMenuOpen(false);
     setIsLoading(true);
 
-    const aiMessageId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: aiMessageId, text: '', sender: 'ai' }]);
-    
-    try {
-      const stream = await continueCourseChatStream(chatRef.current, textToSend);
-      
-      for await (const chunk of stream) {
-        const chunkText = chunk.text;
-        if (chunkText) {
-            setMessages(prev => prev.map(msg => 
-                msg.id === aiMessageId ? { ...msg, text: msg.text + chunkText } : msg
-            ));
-        }
-      }
-    } catch (error) {
-        setMessages(prev => prev.map(msg => 
-            msg.id === aiMessageId ? { ...msg, text: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.' } : msg
-        ));
-    } finally {
+    // Gemini 서비스가 제거되었습니다.
+    setTimeout(() => {
+      const aiMessage: Message = { 
+        id: Date.now().toString(), 
+        text: 'AI 서비스가 비활성화되어 있습니다.', 
+        sender: 'ai' 
+      };
+      setMessages(prev => [...prev, aiMessage]);
       setIsLoading(false);
-    }
+    }, 500);
   }, [input]);
 
   const faqOptions = [
