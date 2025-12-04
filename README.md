@@ -1,20 +1,16 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# OpenAIAPI
 
-# Run and deploy your AI Studio app
+## "content": "복학하는데 친구가 없어 무슨 수업 듣지?"
+### 복학을 준비하면서 친구를 사귀고 싶다면, 사람들과의 만남이 많은 수업을 추천할게요. 다음과 같은 수업들을 고려해보세요.
 
-This contains everything you need to run your app locally.
+### 1. **세미나**: 소규모로 진행되며, 학생들 간의 토론이 중요한 수업입니다. 다양한 주제에 대해 동료들과 의견을 나누며 자연스럽게 교류할 수 있습니다.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1b6FYDHbdzk0EJA5MEEdNrajGWBKIv6-W
+### 2. **그룹 프로젝트가 있는 과목**: 팀워크와 협력이 필요한 수업을 선택해보세요. 예를 들어, 마케팅, 디자인, 공학 관련 과목들은 팀 프로젝트가 많아서 친구를 만들고 인맥을 넓히기 좋습니다.
 
-## Run Locally
+### 3. **예술 및 체육 관련 수업**: 미술, 음악, 무용, 운동 등은 같은 취미를 가진 사람들과 함께 활동할 수 있는 기회를 제공합니다.
 
-**Prerequisites:**  Node.js
+### 4. **외국어 수업**: 언어를 배우며 서로 도와가고, 친구를 만들 수 있는 좋은 기회입니다. 서로의 문화를 공유하며 친해질 수 있습니다.
 
+### 5. **동아리 중심의 과목**: 동아리와 연계된 수업이 있다면, 그런 수업에 참여하는 것도 좋습니다. 같은 관심사를 가진 사람들과 네트워킹할 수 있습니다.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 위의 수업들을 통해 새로운 친구들을 만나고, 의미 있는 관계를 만들어보세요!
