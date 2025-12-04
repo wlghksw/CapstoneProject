@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { getCourseRoadmap } from '../services/geminiService';
 import GraduationCapIcon from './icons/GraduationCapIcon';
 
 const MajorRecommender: React.FC = () => {
@@ -22,8 +21,8 @@ const MajorRecommender: React.FC = () => {
     setIsLoading(true);
     setResultText('');
     try {
-      const result = await getCourseRoadmap(major, grade, careerGoal);
-      setResultText(result);
+      // Gemini 서비스가 제거되었습니다.
+      setError('AI 서비스가 비활성화되었습니다.');
     } catch (e) {
       setError('로드맵을 불러오는 중 오류가 발생했습니다.');
     } finally {
