@@ -1,0 +1,5 @@
+{
+  "name": "Uni-Planner",
+  "description": "An application for university students to manage their timetable, get major recommendations, and receive AI-powered course suggestions, similar to 'Everytime'.",
+  "requestFramePermissions": []
+}
