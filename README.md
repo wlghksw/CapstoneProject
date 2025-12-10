@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/🤖 OpenAI_API-FFD700?style=for-the-badge&logoColor=white" />
+  <img src="https://img.shields.io/badge/OpenAI_API-FFD700?style=for-the-badge&logoColor=white" />
 </p>
 
 # OpenAI_API
@@ -21,7 +21,7 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/CNN%20기반%20교양%20과목%20알림!-FFA500?style=for-the-badge&logo=academia&logoColor=white" />
+  <img src="https://img.shields.io/badge/CNN 기반-FFD700?style=for-the-badge&logoColor=white" />
 </p>
 
 # CNN 기반 교양 과목 알림!
