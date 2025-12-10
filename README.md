@@ -21,7 +21,7 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/CNN 기반-FFD700?style=for-the-badge&logoColor=white" />
+  <img src="https://img.shields.io/badge/CNN-FFD700?style=for-the-badge&logoColor=white" />
 </p>
 
 # CNN 기반 교양 과목 알림!
