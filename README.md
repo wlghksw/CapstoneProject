@@ -1,6 +1,6 @@
-<h1 align="center">
-  <span style="color:#FFD700;">🤖 OpenAI_API 기반 교양 과목 Q&A 서비스</span>
-</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/🤖 OpenAI_API-FFD700?style=for-the-badge&logoColor=white" />
+</p>
 
 # OpenAI_API
 
