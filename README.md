@@ -1,3 +1,7 @@
+<h1 align="center">
+  <span style="color:#FFD700;">🤖 OpenAI_API 기반 교양 과목 Q&A 서비스</span>
+</h1>
+
 # OpenAI_API
 
 ## "content": "복학하는데 친구가 없어 무슨 수업 듣지?"
