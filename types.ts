@@ -32,3 +32,21 @@ export interface Message {
 }
 
 export type AppView = 'timetable' | 'major' | 'chatbot';
+
+export interface User {
+  id: string;
+  username: string; // 아이디
+  password: string; // 비밀번호 (실제로는 해시화되어야 함)
+  name: string; // 이름
+  studentId: string; // 학번
+  department: string; // 학부
+  major: string; // 학과
+  grade: number; // 학년
+  gender: 'male' | 'female' | 'other'; // 성별
+  age: number; // 나이
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}

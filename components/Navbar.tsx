@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppView } from '../types';
+import { AppView, User } from '../types';
 import HomeIcon from './icons/HomeIcon';
 import ChartBarIcon from './icons/ChartBarIcon';
 import ChatBubbleIcon from './icons/ChatBubbleIcon';
@@ -8,9 +8,20 @@ import ChatBubbleIcon from './icons/ChatBubbleIcon';
 interface NavbarProps {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
+  user: User | null;
+  onLoginClick: () => void;
+  onSignUpClick: () => void;
+  onLogoutClick: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  activeView, 
+  setActiveView,
+  user,
+  onLoginClick,
+  onSignUpClick,
+  onLogoutClick,
+}) => {
   const navItems = [
     { id: 'major', label: '전공', icon: ChartBarIcon },
     { id: 'timetable', label: '홈', icon: HomeIcon },
@@ -20,8 +31,38 @@ const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView }) => {
   return (
     <>
       {/* Top Header for mobile app feel */}
-      <header className="bg-gray-50 dark:bg-gray-900 fixed top-0 left-0 right-0 z-40 px-4 py-4 flex justify-center items-center">
+      <header className="bg-gray-50 dark:bg-gray-900 fixed top-0 left-0 right-0 z-40 px-4 py-4 flex justify-between items-center">
          <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Uni-Planner</h1>
+         <div className="flex items-center space-x-2">
+           {user ? (
+             <>
+               <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">
+                 {user.name}님 ({user.major})
+               </span>
+               <button
+                 onClick={onLogoutClick}
+                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+               >
+                 로그아웃
+               </button>
+             </>
+           ) : (
+             <>
+               <button
+                 onClick={onLoginClick}
+                 className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+               >
+                 로그인
+               </button>
+               <button
+                 onClick={onSignUpClick}
+                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+               >
+                 회원가입
+               </button>
+             </>
+           )}
+         </div>
       </header>
 
       {/* Bottom Navigation */}

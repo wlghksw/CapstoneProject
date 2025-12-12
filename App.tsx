@@ -1,15 +1,29 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { AppView, Course, Semester } from './types';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { AppView, Course, Semester, User } from './types';
 import Navbar from './components/Navbar';
 import Timetable from './components/Timetable';
 import MajorRecommender from './components/MajorRecommender';
 import CourseChatbot from './components/CourseChatbot';
 import CreditTracker from './components/CreditTracker';
+import LoginModal from './components/LoginModal';
+import SignUpModal from './components/SignUpModal';
 import { COURSE_COLORS } from './constants';
+import { getCurrentUser, logout as logoutUser } from './utils/auth';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<AppView>('timetable');
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false);
+
+  // 앱 시작 시 저장된 사용자 정보 로드
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
+    }
+  }, []);
   
   // Initialize with one default semester
   const [semesters, setSemesters] = useState<Semester[]>([
@@ -62,7 +76,7 @@ const App: React.FC = () => {
           ...courseData,
           id: `${Date.now()}-${index}`,
           semesterId,
-          color: courseData.color || COURSE_COLORS[(prevCourses.length + index) % COURSE_COLORS.length],
+          color: COURSE_COLORS[(prevCourses.length + index) % COURSE_COLORS.length],
         } as Course;
       });
       return [...prevCourses, ...newCourses];
@@ -103,6 +117,22 @@ const App: React.FC = () => {
 
   const handleSwitchSemester = useCallback((id: string) => {
     setActiveSemesterId(id);
+  }, []);
+
+  const handleLogin = useCallback((loggedInUser: User) => {
+    setUser(loggedInUser);
+    setIsLoginModalOpen(false);
+  }, []);
+
+  const handleSignUp = useCallback((newUser: User) => {
+    setUser(newUser);
+    setIsSignUpModalOpen(false);
+    alert('회원가입이 완료되었습니다!');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logoutUser();
+    setUser(null);
   }, []);
 
   const renderContent = () => {
@@ -155,10 +185,33 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
-      <Navbar activeView={activeView} setActiveView={setActiveView} />
+      <Navbar 
+        activeView={activeView} 
+        setActiveView={setActiveView}
+        user={user}
+        onLoginClick={() => setIsLoginModalOpen(true)}
+        onSignUpClick={() => setIsSignUpModalOpen(true)}
+        onLogoutClick={handleLogout}
+      />
       <main className="container max-w-3xl mx-auto px-4 pb-24 pt-20">
         {renderContent()}
       </main>
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={handleLogin}
+        onSwitchToSignUp={() => {
+          setIsLoginModalOpen(false);
+          setIsSignUpModalOpen(true);
+        }}
+      />
+
+      <SignUpModal
+        isOpen={isSignUpModalOpen}
+        onClose={() => setIsSignUpModalOpen(false)}
+        onSuccess={handleSignUp}
+      />
     </div>
   );
 };
