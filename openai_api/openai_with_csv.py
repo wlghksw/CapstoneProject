@@ -1,141 +1,162 @@
 import os
-import sys
-from dotenv import load_dotenv
+import textwrap
 import pandas as pd
+
+from dotenv import load_dotenv
+from openai import OpenAI
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from openai import OpenAI
-import textwrap
 
 # ---------- 설정 ----------
-CSV_PATH = os.path.join(os.path.dirname(__file__), "course_q_label_1000.csv")
-TFIDF_THRESHOLD = 0.60   
-TOP_K_CONTEXT = 3        # OpenAI에 보낼 유사 Q/A 개수
-MODEL_NAME = "gpt-4o-mini" 
+BASE_DIR = os.path.dirname(__file__)
+COURSE_QA_PATH = os.path.join(BASE_DIR, "course_q_label_1000.csv")
+REVIEW_PATH = os.path.join(BASE_DIR, "강의평 리뷰.csv")
+
+TOP_K_CONTEXT = 3
+MODEL_NAME = "gpt-4o-mini"
 # --------------------------
 
-def die(msg):
-    print("ERROR:", msg)
-    sys.exit(1)
+def load_course_qa(path):
+    df = pd.read_csv(path)
+    df["Q"] = df["Q"].fillna("").astype(str)
+    df["A"] = df["A"].fillna("").astype(str)
+    df["label"] = df["label"].fillna("").astype(str)
+    return df
 
-# .env 불러오기
-load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
+def load_reviews_as_qa(path, max_reviews_per_course=12):
+    rdf = pd.read_csv(path)
 
-# openai 클라이언트
-try:
-    client = OpenAI(api_key=API_KEY)
-except Exception as e:
-    die(f"OpenAI 클라이언트 초기화 실패: {e}")
+    rdf["리뷰내용"] = rdf["리뷰내용"].fillna("").astype(str)
+    rdf["과목명"] = rdf["과목명"].fillna("").astype(str)
+    rdf["교수명"] = rdf["교수명"].fillna("").astype(str)
+    rdf["과목코드"] = rdf["과목코드"].fillna("").astype(str)
 
-# CSV 로드
-if not os.path.exists(CSV_PATH):
-    die(f"CSV 파일을 찾을 수 없습니다: {CSV_PATH}")
+    key_cols = ["과목코드", "과목명", "교수명"]
+    grouped = rdf.groupby(key_cols, dropna=False)
 
-df = pd.read_csv(CSV_PATH)
-if 'Q' not in df.columns or 'A' not in df.columns:
-    die("CSV에 'Q'와 'A' 컬럼이 있어야 합니다.")
+    rows = []
+    for (code, cname, prof), g in grouped:
+        reviews = [t.strip() for t in g["리뷰내용"].tolist() if t.strip()]
+        reviews = reviews[:max_reviews_per_course]
+        if not reviews:
+            continue
 
-texts = df['Q'].astype(str).tolist()
-answers = df['A'].astype(str).tolist()
+        meta = f"과목: {cname} / 교수: {prof} / 과목코드: {code}"
+        bullets = "\n".join([f"- {r}" for r in reviews])
+        a = f"{meta}\n[후기]\n{bullets}"
 
-vectorizer = TfidfVectorizer()
-tfidf_matrix = vectorizer.fit_transform(texts)
+        q_variants = [
+            f"{cname} 강의 어때?",
+            f"{cname} {prof} 강의평 알려줘",
+            f"{cname} 과제 많아?",
+            f"{cname} 시험 어려워?",
+            f"{cname} 꿀강이야?",
+        ]
 
-def find_similar(query, top_k=5):
-    q_vec = vectorizer.transform([query])
-    sims = cosine_similarity(q_vec, tfidf_matrix)[0]
-   
-    idxs = sims.argsort()[::-1][:top_k]
-    return [(int(i), float(sims[i]), texts[i], answers[i]) for i in idxs]
+        for q in q_variants:
+            rows.append({"Q": q, "A": a, "label": "강의평"})
 
-def ask_openai_with_context(user_question, context_qas):
-    """
-    context_qas: list of tuples (Q, A, score)
-    """
-    system = (
-        "너는 대학 수업 추천/설명 도우미야. 사용자가 물어보는 질문에 대해 "
-        "친절하고 간결하게 답변해줘. 가능하면 실행 가능한 팁(예: 수업 유형, 팀 프로젝트 여부, 평가 방식 등)을 제공해라."
-    )
+    return pd.DataFrame(rows)
 
-    context_blocks = []
-    for i, (q, a, score) in enumerate(context_qas, start=1):
-        block = f"[{i}] Q: {q}\nA: {a}\n(sim={score:.3f})"
-        context_blocks.append(block)
-    context_text = "\n\n".join(context_blocks) if context_blocks else "관련 예시 없음."
+def build_tfidf(df):
+    vect = TfidfVectorizer()
+    mat = vect.fit_transform(df["Q"].fillna("").astype(str).tolist())
+    return vect, mat
+
+def find_top_k(df, vect, mat, q, k=3):
+    vec = vect.transform([q])
+    sims = cosine_similarity(vec, mat)[0]
+    ranked = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)
+    return ranked[:k]
+
+def init_openai():
+    load_dotenv()
+    # 키가 있으면 OpenAI 클라이언트 생성
+    if os.getenv("OPENAI_API_KEY"):
+        return OpenAI()
+    return None
+
+def ask_openai(client, question, top_rows):
+    context_parts = []
+    for i, (q, a, label, sim) in enumerate(top_rows, start=1):
+        # label이 NaN이면 빈 문자열로
+        if pd.isna(label):
+            label = ""
+        context_parts.append(
+            f"[{i}] (유사도 {sim:.3f}, label={label})\nQ: {q}\nA: {a}\n"
+        )
+    context_text = "\n".join(context_parts)
+
+    system_prompt = """
+너는 백석대학교 과목 정보/추천 챗봇이야.
+아래 제공된 Q/A는 참고 자료야.
+사용자 질문에 맞게 핵심만 뽑아 자연스럽게 요약해서 답해.
+특히 강의평(후기)은 '과제/시험/난이도/수업방식/교수 스타일' 위주로 정리해줘.
+""".strip()
 
     user_prompt = textwrap.dedent(f"""
-    사용자의 질문:
-    {user_question}
+사용자의 질문:
+{question}
 
-    아래는 데이터베이스에서 찾은 유사한 Q/A 목록입니다. (필요할 때만 참고하세요)
-    {context_text}
+아래는 CSV에서 찾은 유사 Q/A 목록(참고용):
+{context_text}
 
-    요구사항:
-    1. 먼저 사용자의 질문을 가장 우선해서 정확히 이해한 뒤 답변하세요.
-    2. 참조 자료(context)가 실제로 도움이 되면 활용하고, 부족하거나 무관하면 무시해도 됩니다.
-    3. 참조가 부족하거나 질문에 직접 답하기 어려우면:
-        - 부족한 이유를 짧게 설명하고
-        - 사용자가 확인할 추가 정보 또는 선택지를 제안하세요.
-    4. 친절하면서도 실용적이고 명확한 답변을 제공합니다.
-    """).strip()
+위 정보를 참고해서 가장 자연스럽고 정확한 답변을 완성해줘.
+""").strip()
 
+    resp = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.4,
+        max_tokens=600,
+    )
+    return resp.choices[0].message.content.strip()
 
-    try:
-        resp = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.6,
-            max_tokens=600
-        )
-        return resp.choices[0].message.content
-    except Exception as e:
-        return f"(OpenAI 호출 오류) {e}"
+def main():
+    print("=== 백석대학교 시간표/강의평 챗봇 ===\n")
 
-def interactive_loop():
-    print("CSV 기반 Q/A + OpenAI 보조. 종료하려면 q 또는 quit 입력.")
+    df_course = load_course_qa(COURSE_QA_PATH)
+    df_review = load_reviews_as_qa(REVIEW_PATH)
+
+    df = pd.concat([df_course, df_review], ignore_index=True)
+
+    vect, mat = build_tfidf(df)
+    client = init_openai()
+
     while True:
         try:
-            q = input("\n질문> ").strip()
+            question = input("\n질문> ").strip()
         except KeyboardInterrupt:
-            print("\n종료 (Ctrl-C).")
-            break
-        if not q:
-            continue
-        if q.lower() in ('q', 'quit', 'exit'):
-            print("종료합니다.")
+            print("\n종료")
             break
 
-        sims = find_similar(q, top_k=TOP_K_CONTEXT)
-        best_idx, best_score, best_q, best_a = sims[0]
-        
-        print(f"\n[로컬 검색] top {TOP_K_CONTEXT} 유사 항목:")
-        for i, (idx, score, tq, ta) in enumerate(sims, start=1):
-            print(f" {i}. (idx={idx}, sim={score:.3f}) Q: {tq}")
+        if not question:
+            break
 
-        
-        if best_score >= TFIDF_THRESHOLD and best_a.strip():
-            print(f"답변(A):\n{best_a}\n")
+        top_indexes = find_top_k(df, vect, mat, question, TOP_K_CONTEXT)
 
-            # 여전히 추가 설명을 원하면 OpenAI에 물을 수 있게 묻기
-            cont = input("더 자세한 설명이 필요하면 더 알려줘 라고 해줘: ").strip().lower()
+        top_rows = []
+        for idx, sim in top_indexes:
+            row = df.iloc[idx]
+            top_rows.append((row["Q"], row["A"], row.get("label", ""), sim))
 
-            if ("알려" in cont) or ("더" in cont and "줘" in cont):
-            # 상세 요청으로 처리
-                context_for_openai = [(s[2], s[3], s[1]) for s in sims]
-                print("\n[생각중입니다 잠시만 기다려주세용...]\n")
-                print(ask_openai_with_context(q, context_for_openai))
-                continue
+        best_sim = top_rows[0][3]  # top1 유사도
 
-        # 3) 로컬에 충분히 비슷한 게 없으면 OpenAI에 context와 함께 요청
-        context_for_openai = [(s[2], s[3], s[1]) for s in sims]
-        print("\n[OpenAI에게 질문 중 — 로컬에 충분한 답이 없음]\n")
-        ai_ans = ask_openai_with_context(q, context_for_openai)
-        print(ai_ans)
+        if client is None:
+            print("\n[답변]:\n")
+            print(top_rows[0][1])
+
+        elif best_sim >= 0.80:
+            print("\n[답변]:\n")
+            print(top_rows[0][1])
+
+        else:
+            answer = ask_openai(client, question, top_rows)
+            print("\n[답변]:\n")
+            print(answer)
 
 if __name__ == "__main__":
-    print("초기화 완료. CSV 파일에서 TF-IDF 인덱스 생성됨.")
-    interactive_loop()
+    main()
