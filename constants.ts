@@ -1,6 +1,8 @@
+// constants.ts
+
 import { DayOfWeek } from './types';
 
-// 요일 설정 (기존 유지)
+// 요일 설정
 export const DAYS_OF_WEEK: DayOfWeek[] = [
   DayOfWeek.MON, 
   DayOfWeek.TUE, 
@@ -9,14 +11,14 @@ export const DAYS_OF_WEEK: DayOfWeek[] = [
   DayOfWeek.FRI
 ];
 
-// 시간 슬롯 설정: 09:00 ~ 18:00 (총 10개 슬롯)
-// 수정 사항: 9:00 -> 09:00 (앞에 0을 채워서 시간 포맷 통일)
-export const TIME_SLOTS: string[] = Array.from({ length: 10 }, (_, i) => {
+// 시간 슬롯 설정: 09:00 ~ 19:00
+// [수정됨] 19시에 끝나는 수업을 위해 길이를 11로 변경 (09, 10, ... 18, 19)
+export const TIME_SLOTS: string[] = Array.from({ length: 11 }, (_, i) => {
   const hour = i + 9;
   return `${hour < 10 ? '0' : ''}${hour}:00`; 
 });
 
-// 과목 색상 (사용자 지정 디자인 유지)
+// 과목 색상
 export const COURSE_COLORS: string[] = [
   'bg-red-200 border-red-300 text-red-800',
   'bg-blue-200 border-blue-300 text-blue-800',
