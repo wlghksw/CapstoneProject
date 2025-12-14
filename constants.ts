@@ -1,10 +1,22 @@
-
 import { DayOfWeek } from './types';
 
-export const DAYS_OF_WEEK: DayOfWeek[] = [DayOfWeek.MON, DayOfWeek.TUE, DayOfWeek.WED, DayOfWeek.THU, DayOfWeek.FRI];
+// 요일 설정 (기존 유지)
+export const DAYS_OF_WEEK: DayOfWeek[] = [
+  DayOfWeek.MON, 
+  DayOfWeek.TUE, 
+  DayOfWeek.WED, 
+  DayOfWeek.THU, 
+  DayOfWeek.FRI
+];
 
-export const TIME_SLOTS: string[] = Array.from({ length: 10 }, (_, i) => `${i + 9}:00`); // 9 AM to 6 PM
+// 시간 슬롯 설정: 09:00 ~ 18:00 (총 10개 슬롯)
+// 수정 사항: 9:00 -> 09:00 (앞에 0을 채워서 시간 포맷 통일)
+export const TIME_SLOTS: string[] = Array.from({ length: 10 }, (_, i) => {
+  const hour = i + 9;
+  return `${hour < 10 ? '0' : ''}${hour}:00`; 
+});
 
+// 과목 색상 (사용자 지정 디자인 유지)
 export const COURSE_COLORS: string[] = [
   'bg-red-200 border-red-300 text-red-800',
   'bg-blue-200 border-blue-300 text-blue-800',
