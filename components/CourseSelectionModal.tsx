@@ -33,7 +33,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 검색 모드일 때 데이터 로드
   useEffect(() => {
     if (isOpen && !lectures) {
       const fetchFromDB = async () => {
@@ -64,7 +63,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
 
   const semesterCourses = existingCourses.filter(c => c.semesterId === semesterId);
 
-  // 강의 추가 핸들러
   const handleAttemptAdd = async (lecture: LectureData) => {
     const schedule = parseSchedule(lecture.time_text, lecture.hours);
     
@@ -73,10 +71,7 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
       return;
     }
 
-    // 1. 시간 충돌 체크 (대면 수업인 경우에만)
     let conflict = { hasConflict: false, conflictingCourses: [] as any[] };
-    
-    // 요일(day)이 있는 경우에만 충돌 체크 수행
     if (schedule.day) {
         conflict = checkTimeConflict(
             { 
@@ -94,17 +89,19 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
       return; 
     }
 
-    // 2. 데이터 구성 (사이버 시간 포함)
+    // [핵심 수정] DB에는 classroom, 타입에는 room인 상황 해결
+    // Service를 안 고쳤으므로 실제 데이터는 classroom에 들어있음
+    const realLocation = lecture.room || (lecture as any).classroom || schedule.location || '장소 미정';
+
     const courseData = {
       name: lecture.name,
       professor: lecture.professor,
-      location: schedule.location || '장소 미정',
-      day: (schedule.day as string) || '', // 요일 없으면 빈 문자열 (100% 사이버)
+      location: realLocation, // 수정된 location 사용
+      day: (schedule.day as string) || '',
       startTime: schedule.startTime,
       endTime: schedule.endTime,
       credits: lecture.credit || 3,
       semesterId,
-      // [추가됨] 사이버 시간 정보 저장
       cyberHours: lecture.cyber_hours || 0,
     };
 
@@ -122,15 +119,11 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
             type: lecture.type
         });
         
-        // 추가 완료 메시지 (사이버 강의 정보 포함)
         let msg = `${lecture.name} 강의가 추가되었습니다.`;
         if (!schedule.day) {
           msg += `\n(100% 사이버 강의로 하단 목록에 표시됩니다)`;
-        } else if (lecture.cyber_hours && lecture.cyber_hours > 0) {
-           msg += `\n(대면 수업 + 사이버 ${lecture.cyber_hours}시간)`;
         }
         alert(msg);
-        
         onCourseAdded();
       } catch (e) {
         console.error(e);
@@ -139,19 +132,16 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
     }
   };
 
-  // 렌더링용 리스트 (선택 모드 or 검색 모드)
   const listToRender = (lectures && lectures.length > 0) ? lectures : dbLectures;
   const isSearchMode = !lectures;
 
-  // 공통 리스트 아이템 렌더러
   const renderListItem = (lecture: LectureData) => {
     const schedule = parseSchedule(lecture.time_text, lecture.hours);
     
-    // 충돌 여부 및 표시 텍스트 계산
     let conflict = { hasConflict: false };
     let displayTime = lecture.time_text;
-    const isCyberOnly = !schedule?.day; // 요일이 없으면 100% 사이버
-    const hasCyberHour = lecture.cyber_hours && lecture.cyber_hours > 0; // 사이버 시간 존재 여부
+    const isCyberOnly = !schedule?.day; 
+    const hasCyberHour = lecture.cyber_hours && lecture.cyber_hours > 0;
 
     if (schedule) {
         if (schedule.day) {
@@ -165,12 +155,15 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
             );
             displayTime = `${schedule.day} ${schedule.startTime}~${schedule.endTime}`;
         } else {
-            // 요일 없음 -> 사이버 강의 또는 시간 미지정
             displayTime = schedule.location || "시간 미지정";
         }
     }
 
     const isAlreadyAdded = existingCourses.some(c => c.lectureId === lecture.id);
+
+    // [핵심 수정] 리스트 표시용 강의실 정보
+    // lecture.room이 없으면 (lecture as any).classroom을 사용
+    const displayRoom = lecture.room || (lecture as any).classroom || schedule?.location || '강의실 미정';
 
     return (
         <div key={lecture.id} className="p-4 border rounded-xl hover:border-blue-300 transition-colors flex justify-between items-center bg-white dark:bg-gray-800 dark:border-gray-700">
@@ -179,7 +172,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
                     <span className="text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">{lecture.type}</span>
                     <h3 className="font-bold text-gray-800 dark:text-gray-200">{lecture.name}</h3>
                     
-                    {/* [추가됨] 사이버 강의 배지 표시 */}
                     {isCyberOnly ? (
                         <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800">
                             💻 100% 사이버
@@ -192,7 +184,7 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
                 </div>
                 
                 <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">
-                    {lecture.professor} | {lecture.credit}학점 | {lecture.room}
+                    {lecture.professor} | {lecture.credit}학점 | <span className="font-semibold text-gray-700 dark:text-gray-300">{displayRoom}</span> | <span className="font-mono text-gray-400">{lecture.id}</span>
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5 font-medium">
                     {displayTime}
@@ -219,12 +211,10 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
     );
   };
 
-  // --- 메인 렌더링 ---
   return (
     <div className={`fixed inset-0 bg-black/60 z-50 flex justify-center ${isSearchMode ? 'items-end sm:items-center' : 'items-center'} animate-fade-in`}>
       <div className={`bg-white dark:bg-gray-900 w-full ${isSearchMode ? 'sm:w-[600px] h-[80vh] sm:rounded-2xl' : 'max-w-md rounded-lg max-h-[80vh]'} flex flex-col shadow-2xl overflow-hidden`}>
         
-        {/* Header */}
         <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">
             {courseName ? `${courseName} - 시간 선택` : '강의 추가'}
@@ -232,7 +222,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">✕</button>
         </div>
 
-        {/* 검색 모드일 때만 탭과 검색창 표시 */}
         {isSearchMode && (
           <div className="p-4 space-y-4 bg-white dark:bg-gray-900">
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
@@ -259,7 +248,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
           </div>
         )}
 
-        {/* 선택 모드일 때 안내 문구 */}
         {!isSearchMode && (
            <div className="px-4 pt-4">
              <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -268,7 +256,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
            </div>
         )}
 
-        {/* List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-black/20">
           {loading ? (
             <div className="text-center py-10 text-gray-400">로딩 중...</div>
@@ -279,7 +266,6 @@ const CourseSelectionModal: React.FC<CourseSelectionModalProps> = ({
           )}
         </div>
 
-        {/* 선택 모드일 때 하단 닫기 버튼 */}
         {!isSearchMode && (
              <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex justify-end">
               <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-white">취소</button>

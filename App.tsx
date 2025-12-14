@@ -5,6 +5,7 @@ import Timetable from './components/Timetable';
 import MajorRecommender from './components/MajorRecommender';
 import CourseChatbot from './components/CourseChatbot';
 import CreditTracker from './components/CreditTracker';
+import ProfileEdit from './components/ProfileEdit';
 import { auth, db } from './services/firebase'; // auth는 상태 체크용, db는 userProfile용
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -146,7 +147,7 @@ const App: React.FC = () => {
   }, [handleRefresh]);
 
   // 여러 강의 추가 (MajorRecommender용)
-const handleAddCourses = useCallback(async (coursesToAdd: Omit<Course, 'id' | 'color'>[]) => {
+  const handleAddCourses = useCallback(async (coursesToAdd: Omit<Course, 'id' | 'color'>[]) => {
     if (!currentUser) return;
     try {
       const promises = coursesToAdd.map((c, index) => {
@@ -168,6 +169,21 @@ const handleAddCourses = useCallback(async (coursesToAdd: Omit<Course, 'id' | 'c
     }
   }, [currentUser, handleRefresh]);
 
+  // 프로필 업데이트 핸들러
+  const handleProfileUpdate = useCallback(async () => {
+    if (currentUser) {
+      // 프로필 업데이트 후 사용자 프로필 다시 로드
+      try {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      }
+    }
+  }, [currentUser]);
 
   // 렌더링 시작
   if (!authInitialized) return <SplashScreen />;
@@ -205,6 +221,13 @@ const handleAddCourses = useCallback(async (coursesToAdd: Omit<Course, 'id' | 'c
         );
       case 'chatbot':
         return <CourseChatbot />;
+      case 'profile':
+        return (
+          <ProfileEdit
+            currentUser={currentUser}
+            onBack={() => setActiveView('timetable')}
+          />
+        );
       default:
         return null;
     }

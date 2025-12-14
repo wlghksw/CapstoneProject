@@ -61,7 +61,7 @@ export interface Message {
   sender: 'user' | 'ai';
 }
 
-export type AppView = 'timetable' | 'major' | 'chatbot';
+export type AppView = 'timetable' | 'major' | 'chatbot' | 'profile';
 
 export const PREDEFINED_SEMESTERS = [
   "1학년 1학기", "1학년 2학기",

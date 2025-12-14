@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Major, ROADMAPS, RoadmapCourse } from '../roadmapData';
-import { Course, Semester, LectureData, DayOfWeek } from '../types'; // [수정] DayOfWeek 추가
+import { Course, Semester, LectureData, DayOfWeek } from '../types';
 import { parseSchedule } from '../utils/timetableParser';
 import { checkTimeConflict } from '../utils/timeConflict';
 import CourseSelectionModal from './CourseSelectionModal';
@@ -62,6 +62,7 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
     setLoading(true);
     const newSemesters: { [name: string]: string } = {};
 
+    // 1. 학기 생성 로직
     selectedCourses.forEach(courseName => {
       const roadmapCourse = currentRoadmap?.courses.find(c => c.name === courseName);
       if (roadmapCourse) {
@@ -79,6 +80,7 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    // 2. 강의 추가 루프
     for (const courseName of selectedCourses) {
       const lectures = await findLecturesInDB(courseName);
       const roadmapCourse = currentRoadmap?.courses.find(c => c.name === courseName);
@@ -95,56 +97,71 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
         continue;
       }
 
+      // 해당 학기의 기존 강의 목록 가져오기 (충돌 체크용)
+      const semesterCourses = courses.filter(c => c.semesterId === semester.id && c.userId === userId);
+
+      // [추가된 로직 1] 이미 추가된 강의인지 이름으로 확인 (중복 방지)
+      const isDuplicate = semesterCourses.some(c => c.name === lectures[0].name); 
+      if (isDuplicate) {
+        // 이미 있으면 조용히 스킵 (또는 로그)
+        console.log(`[Skip] ${courseName}은(는) 이미 시간표에 존재합니다.`);
+        continue;
+      }
+
       if (lectures.length === 1) {
+        // --- 단일 분반일 경우 자동 추가 로직 ---
         const lecture = lectures[0];
         const schedule = parseSchedule(lecture.time_text, lecture.hours); 
         
-        if (!schedule || !schedule.day) {
-          alert(`${lecture.name}의 시간표 정보를 파싱할 수 없습니다. (시간표: ${lecture.time_text})`);
+        if (!schedule) {
+          alert(`${lecture.name}의 시간표 정보를 파싱할 수 없습니다.`);
           continue;
         }
 
-        const semesterCourses = courses.filter(c => c.semesterId === semester.id && c.userId === userId);
-        
-        // [수정] day를 DayOfWeek로 강제 형변환 (as DayOfWeek)
-        const conflict = checkTimeConflict({ 
-            day: schedule.day as DayOfWeek, 
-            startTime: schedule.startTime, 
-            endTime: schedule.endTime 
-        }, semesterCourses);
+        // [추가된 로직 2] 시간 충돌 시 강제 차단 (Confirm 제거 -> Alert 후 Skip)
+        if (schedule.day) {
+            const conflict = checkTimeConflict({ 
+                day: schedule.day as DayOfWeek, 
+                startTime: schedule.startTime, 
+                endTime: schedule.endTime 
+            }, semesterCourses);
 
-        if (conflict.hasConflict) {
-          const conflictNames = conflict.conflictingCourses.map(c => c.name).join(', ');
-          if (!confirm(`${lecture.name}의 시간이 다음 강의와 겹칩니다:\n${conflictNames}\n그래도 추가하시겠습니까?`)) {
-            continue;
-          }
+            if (conflict.hasConflict) {
+                const conflictNames = conflict.conflictingCourses.map(c => c.name).join(', ');
+                alert(`⛔ [추가 실패] '${lecture.name}' 강의는 기존 시간표와 겹칩니다.\n(겹치는 강의: ${conflictNames})`);
+                continue; // 여기서 다음 루프로 건너뜀 (추가 안 함)
+            }
         }
 
+        // 문제가 없으면 추가
         onAddCourses([{
           name: lecture.name,
           professor: lecture.professor,
-          location: schedule.location || '',
-          day: (schedule.day as string),
+          location: schedule.location || '장소 미정',
+          day: (schedule.day as string) || '',
           startTime: schedule.startTime,
           endTime: schedule.endTime,
           credits: lecture.credit || 3,
           semesterId: semester.id,
+          // 사이버 시간 등 추가 정보 매핑
+          cyberHours: lecture.cyber_hours || 0,
         }]);
       } else {
+        // --- 분반이 여러 개일 경우 모달 띄우기 ---
         setCourseSelectionModal({
           isOpen: true,
           courseName,
-          existingCourses: courses,
+          existingCourses: courses, // 현재 전체 강의 목록 전달 (모달 내부에서 필터링함)
           lectures,
           semesterId: semester.id,
         });
         setLoading(false);
-        return;
+        return; // 모달이 뜨면 루프 중단하고 사용자 입력을 기다림
       }
     }
 
     setSelectedCourses(new Set());
-    alert(`선택한 과목들이 시간표에 추가되었습니다.`);
+    // alert(`작업이 완료되었습니다.`); // 필요 시 주석 해제
     setLoading(false);
   };
 
@@ -158,7 +175,7 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
     if (remainingCourses.length > 0) {
       processRemainingCourses(remainingCourses);
     } else {
-      alert('모든 과목이 시간표에 추가되었습니다.');
+      alert('모든 과목 처리가 완료되었습니다.');
     }
   };
 
@@ -172,6 +189,17 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
       const semester = semesters.find(s => s.name === semesterName);
 
       if (semester?.id) {
+        // 기존 강의 목록 조회
+        const semesterCourses = courses.filter(c => c.semesterId === semester.id);
+        
+        // [중복 체크]
+        if (semesterCourses.some(c => c.name === lectures[0].name)) {
+             const nextRemaining = remaining.slice(1);
+             setSelectedCourses(new Set(nextRemaining));
+             if (nextRemaining.length > 0) processRemainingCourses(nextRemaining);
+             return;
+        }
+
         if (lectures.length > 1) {
           setCourseSelectionModal({
             isOpen: true,
@@ -183,17 +211,32 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
         } else if (lectures.length === 1) {
             const lecture = lectures[0];
             const schedule = parseSchedule(lecture.time_text, lecture.hours);
+            
+            let hasConflict = false;
             if (schedule && schedule.day) {
-                // [수정] 여기서도 conflict 체크를 하거나 그냥 추가 (기존 로직 유지)
-                onAddCourses([{
+                 const conflict = checkTimeConflict({ 
+                    day: schedule.day as DayOfWeek, 
+                    startTime: schedule.startTime, 
+                    endTime: schedule.endTime 
+                }, semesterCourses);
+                
+                if (conflict.hasConflict) {
+                    hasConflict = true;
+                    alert(`⛔ [추가 실패] '${lecture.name}' 강의는 기존 시간표와 겹쳐서 추가되지 않았습니다.`);
+                }
+            }
+
+            if (!hasConflict && schedule) {
+                 onAddCourses([{
                     name: lecture.name,
                     professor: lecture.professor,
-                    location: schedule.location || '',
-                    day: schedule.day as string, // [수정] string으로 변환
+                    location: schedule.location || '장소 미정',
+                    day: (schedule.day as string) || '',
                     startTime: schedule.startTime,
                     endTime: schedule.endTime,
                     credits: lecture.credit || 3,
                     semesterId: semester.id,
+                    cyberHours: lecture.cyber_hours || 0,
                 }]);
             }
 
@@ -207,7 +250,7 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
 
   return (
     <div className="space-y-6">
-      {/* ... (UI 부분은 변경 없음) ... */}
+      {/* 전공 선택 및 추가 버튼 영역 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <select
           value={selectedMajor}
@@ -230,6 +273,7 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
         </button>
       </div>
 
+      {/* 로드맵 과목 목록 */}
       <div className="space-y-8">
         {Object.entries(groupedCourses).map(([semester, coursesInSemester]: [string, RoadmapCourse[]]) => (
           <div key={semester}>
@@ -253,36 +297,51 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {coursesInSemester.map((course) => (
-                <button
-                  key={course.name}
-                  onClick={() => {
-                    const newSelected = new Set(selectedCourses);
-                    if (newSelected.has(course.name)) {
-                      newSelected.delete(course.name);
-                    } else {
-                      newSelected.add(course.name);
-                    }
-                    setSelectedCourses(newSelected);
-                  }}
-                  className={`p-3 rounded-lg text-left transition-all duration-200 shadow-sm ${
-                    selectedCourses.has(course.name)
-                      ? 'bg-indigo-100 dark:bg-indigo-900/50 border-2 border-indigo-500'
-                      : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{course.name}</span>
-                    {selectedCourses.has(course.name) && (
-                      <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
+              {coursesInSemester.map((course) => {
+                 // [UI 개선] 이미 시간표에 추가된 과목인지 확인하여 시각적으로 표시
+                 const isAlreadyAdded = courses.some(c => 
+                     c.name === course.name && 
+                     c.semesterId === semesters.find(s => s.name === `${course.year}학년 ${course.semester}학기`)?.id
+                 );
+
+                 return (
+                    <button
+                    key={course.name}
+                    onClick={() => {
+                        // 이미 추가된 과목은 선택 불가하게 하거나 토글
+                        if (isAlreadyAdded) return; 
+                        const newSelected = new Set(selectedCourses);
+                        if (newSelected.has(course.name)) {
+                        newSelected.delete(course.name);
+                        } else {
+                        newSelected.add(course.name);
+                        }
+                        setSelectedCourses(newSelected);
+                    }}
+                    disabled={isAlreadyAdded} // 이미 추가된 과목 비활성화
+                    className={`p-3 rounded-lg text-left transition-all duration-200 shadow-sm ${
+                        isAlreadyAdded 
+                        ? 'bg-gray-200 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed'
+                        : selectedCourses.has(course.name)
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 border-2 border-indigo-500'
+                        : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    >
+                    <div className="flex items-start justify-between">
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{course.name}</span>
+                        {isAlreadyAdded ? (
+                             <span className="text-[10px] text-green-600 font-bold">완료</span>
+                        ) : selectedCourses.has(course.name) && (
+                        <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        )}
+                    </div>
+                    </button>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -293,7 +352,8 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
           isOpen={courseSelectionModal.isOpen}
           onClose={() => {
             setCourseSelectionModal(null);
-            setSelectedCourses(new Set());
+            // 모달 닫을 때 선택 초기화 (사용자 경험에 따라 조정 가능)
+            // setSelectedCourses(new Set()); 
           }}
           courseName={courseSelectionModal.courseName}
           lectures={courseSelectionModal.lectures}

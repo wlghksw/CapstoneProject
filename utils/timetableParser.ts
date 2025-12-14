@@ -115,4 +115,3 @@ export const parseMultipleSchedules = (timetable: string, hours?: number): Sched
 
   return schedules;
 };
-

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Semester } from '../types';
-import { DAYS_OF_WEEK, TIME_SLOTS } from '../constants';
+import { DAYS_OF_WEEK, TIME_SLOTS } from '../constants'; // constants에서 가져옴 (09~19)
 import CourseModal from './CourseModal';
 import SemesterListModal from './SemesterListModal';
 import CourseSelectionModal from './CourseSelectionModal';
@@ -38,6 +38,12 @@ const Timetable: React.FC<TimetableProps> = ({
   const [initialData, setInitialData] = useState<Partial<Course> | null>(null);
   const [currentCourses, setCurrentCourses] = useState<Course[]>([]);
 
+  // [핵심] constants.ts의 TIME_SLOTS를 기준으로 시작/종료 시간 동적 계산
+  // TIME_SLOTS가 09:00 ~ 19:00이면 -> start=9, end=19, total=10시간
+  const startHour = parseInt(TIME_SLOTS[0].split(':')[0], 10); 
+  const endHour = parseInt(TIME_SLOTS[TIME_SLOTS.length - 1].split(':')[0], 10);
+  const totalHours = endHour - startHour; 
+
   const fetchCourses = async () => {
     if (!activeSemesterId || !userId) return;
     try {
@@ -52,12 +58,9 @@ const Timetable: React.FC<TimetableProps> = ({
     fetchCourses();
   }, [activeSemesterId, userId]);
 
-  // [중요] 대면 강의와 사이버/미지정 강의 분리
-  // day가 빈 문자열("")이거나 유효하지 않은 경우 사이버 강의로 간주
   const { gridCourses, cyberCourses } = useMemo(() => {
     const grid: Course[] = [];
     const cyber: Course[] = [];
-
     currentCourses.forEach(course => {
         if (course.day && DAYS_OF_WEEK.includes(course.day as any)) {
             grid.push(course);
@@ -85,10 +88,17 @@ const Timetable: React.FC<TimetableProps> = ({
     setInitialData(null);
   };
 
+  // 시간 -> 위치(%) 변환 함수
   const timeToPosition = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const totalMinutes = (hours - 9) * 60 + minutes; 
-    return (totalMinutes / (9 * 60)) * 100;
+    const [hStr, mStr] = time.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    
+    // (현재시간 - 시작시간)분을 전체시간(분)으로 나눔
+    const currentMinutes = (h - startHour) * 60 + m;
+    const totalMinutes = totalHours * 60;
+    
+    return (currentMinutes / totalMinutes) * 100;
   };
   
   const courseToStyle = (course: Course) => {
@@ -105,21 +115,20 @@ const Timetable: React.FC<TimetableProps> = ({
     };
   };
 
-  // 그리드에 표시될 대면 강의 컴포넌트
   const courseComponents = useMemo(() => gridCourses.map(course => (
     <div
       key={course.id}
-      className={`absolute p-1.5 rounded-md border shadow-sm cursor-pointer transform hover:scale-[1.02] transition-all duration-200 ${course.color} opacity-90 hover:opacity-100 z-20`}
+      className={`absolute p-1 border shadow-sm cursor-pointer transform hover:scale-[1.02] transition-all duration-200 ${course.color} opacity-90 hover:opacity-100 z-20 flex flex-col justify-center items-center text-center overflow-hidden rounded-md`}
       style={courseToStyle(course)}
       onClick={(e) => {
         e.stopPropagation();
         handleOpenModal(course);
       }}
     >
-      <p className="font-bold text-xs truncate leading-tight">{course.name}</p>
-      <p className="text-[10px] truncate opacity-75">{course.location}</p>
+      <p className="font-bold text-[11px] leading-tight w-full truncate px-1">{course.name}</p>
+      <p className="text-[9px] opacity-80 w-full truncate px-1">{course.location}</p>
     </div>
-  )), [gridCourses]);
+  )), [gridCourses, startHour, totalHours]);
 
   return (
     <div className="relative pb-24">
@@ -130,7 +139,7 @@ const Timetable: React.FC<TimetableProps> = ({
             className="flex items-center space-x-2 group focus:outline-none"
         >
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
-                {activeSemesterName ? `${activeSemesterName}` : "학기 선택"}
+                {activeSemesterName ? `${activeSemesterName} 시간표` : "학기 선택"}
             </h2>
             <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400">
                 <ListIcon className="w-5 h-5" />
@@ -149,75 +158,92 @@ const Timetable: React.FC<TimetableProps> = ({
 
       {/* Main Timetable Container */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 min-h-[600px]">
-        <div className="flex flex-col h-full min-h-[540px]">
-            {/* 요일 헤더 */}
-            <div className="flex mb-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-                <div className="w-10 flex-shrink-0"></div>
-                <div className="flex-1 grid grid-cols-5">
-                    {DAYS_OF_WEEK.map((day) => (
-                        <div key={day} className="text-center font-medium text-gray-500 dark:text-gray-400 text-sm">
-                            {day}
+        
+        {/* 요일 헤더 */}
+        <div className="flex mb-2 border-b border-gray-100 dark:border-gray-700 pb-2">
+            <div className="w-10 flex-shrink-0"></div>
+            <div className="flex-1 grid grid-cols-5">
+                {DAYS_OF_WEEK.map((day) => (
+                    <div key={day} className="text-center font-medium text-gray-500 dark:text-gray-400 text-sm">
+                        {day}
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        {/* 시간표 바디 (Grid) */}
+        <div className="flex relative h-[600px]"> {/* 높이 살짝 늘림 (10시간이라) */}
+            
+            {/* 왼쪽 시간 열 */}
+            <div className="w-10 flex-shrink-0 relative border-r border-gray-100 dark:border-gray-700 text-right pr-2">
+                {TIME_SLOTS.map((time, index) => {
+                    // 마지막 시간(19:00) 텍스트 생략 여부 결정
+                    if (index === TIME_SLOTS.length - 1) return null;
+                    
+                    const topPos = (index / totalHours) * 100;
+                    
+                    return (
+                        <div key={time} className="absolute w-full text-xs text-gray-400 dark:text-gray-500 transform -translate-y-1/2"
+                            style={{ top: `${topPos}%` }}>
+                            {time.split(':')[0]}
                         </div>
-                    ))}
-                </div>
+                    );
+                })}
             </div>
 
-            {/* 시간표 바디 */}
-            <div className="flex-1 flex relative">
-                <div className="w-10 flex-shrink-0 relative border-r border-gray-100 dark:border-gray-700 text-right pr-2">
-                    {TIME_SLOTS.map((time, index) => {
-                        if (index === TIME_SLOTS.length - 1) return null; 
+            {/* 메인 그리드 */}
+            <div className="flex-1 relative w-full h-full">
+                {/* 가로선 (시간 구분) */}
+                {TIME_SLOTS.map((_, index) => (
+                    <div key={index} 
+                         className="absolute w-full border-t border-dashed border-gray-100 dark:border-gray-700 pointer-events-none" 
+                         style={{ top: `${(index / totalHours) * 100}%` }}>
+                    </div>
+                ))}
+                
+                {/* 세로선 (요일 구분) */}
+                {DAYS_OF_WEEK.slice(0, 4).map((_, index) => (
+                    <div key={index} 
+                         className="absolute top-0 bottom-0 w-px border-l border-gray-50 dark:border-gray-700 pointer-events-none" 
+                         style={{ left: `${(index + 1) * 20}%`}}>
+                    </div>
+                ))}
+
+                {/* 빈 셀 (클릭 영역) */}
+                {DAYS_OF_WEEK.map((day, dayIndex) => (
+                    // 총 시간(totalHours) 만큼 반복
+                    Array.from({ length: totalHours }).map((_, hourIndex) => {
+                        const h = startHour + hourIndex;
+                        const startTimeStr = `${h < 10 ? '0' : ''}${h}:00`;
+                        const endTimeStr = `${h + 1 < 10 ? '0' : ''}${h + 1}:00`;
+
                         return (
-                            <div key={time} className="absolute w-full text-xs text-gray-400 dark:text-gray-500 transform -translate-y-1/2"
-                                style={{ top: `${(index / (TIME_SLOTS.length - 1)) * 100}%` }}>
-                                {time.split(':')[0]}
-                            </div>
+                            <div
+                                key={`${day}-${h}`}
+                                className="absolute w-1/5 border-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors duration-150 z-10"
+                                style={{
+                                    left: `${dayIndex * 20}%`,
+                                    top: `${(hourIndex / totalHours) * 100}%`,
+                                    height: `${(1 / totalHours) * 100}%`
+                                }}
+                                onClick={() => handleOpenModal(undefined, { 
+                                    day: day as any, 
+                                    startTime: startTimeStr, 
+                                    endTime: endTimeStr 
+                                })}
+                                title={`${day} ${startTimeStr}에 강의 추가`}
+                            />
                         );
-                    })}
-                </div>
+                    })
+                ))}
 
-                <div className="flex-1 relative">
-                    {/* 가로/세로선 */}
-                    {TIME_SLOTS.map((_, index) => (
-                        <div key={index} className="absolute w-full border-t border-dashed border-gray-100 dark:border-gray-700 pointer-events-none" style={{ top: `${(index / (TIME_SLOTS.length - 1)) * 100}%` }}></div>
-                    ))}
-                    {DAYS_OF_WEEK.slice(0, 4).map((_, index) => (
-                        <div key={index} className="absolute top-0 bottom-0 w-px border-l border-gray-50 dark:border-gray-700 pointer-events-none" style={{ left: `${(index + 1) * 20}%`}}></div>
-                    ))}
-
-                    {/* 클릭 영역 */}
-                    {DAYS_OF_WEEK.map((day, dayIndex) => (
-                        TIME_SLOTS.slice(0, -1).map((time, timeIndex) => {
-                            const [hStr, mStr] = time.split(':');
-                            const h = Number(hStr);
-                            const m = Number(mStr);
-                            const startTimeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                            const endTimeStr = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-
-                            return (
-                                <div
-                                    key={`${day}-${time}`}
-                                    className="absolute w-1/5 border-gray-50 dark:border-gray-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors duration-150 z-10"
-                                    style={{
-                                        left: `${dayIndex * 20}%`,
-                                        top: `${(timeIndex / (TIME_SLOTS.length - 1)) * 100}%`,
-                                        height: `${(1 / (TIME_SLOTS.length - 1)) * 100}%`
-                                    }}
-                                    onClick={() => handleOpenModal(undefined, { day: day as any, startTime: startTimeStr, endTime: endTimeStr })}
-                                    title={`${day} ${time}에 강의 추가`}
-                                />
-                            );
-                        })
-                    ))}
-
-                    {/* 대면 강의 렌더링 */}
-                    {courseComponents}
-                </div>
+                {/* 강의 블록 렌더링 */}
+                {courseComponents}
             </div>
         </div>
       </div>
 
-      {/* [추가됨] 사이버 강의 목록 (시간표 없는 강의) */}
+      {/* 사이버 강의 목록 */}
       {cyberCourses.length > 0 && (
         <div className="mt-6">
             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 px-2 flex items-center">
@@ -238,7 +264,7 @@ const Timetable: React.FC<TimetableProps> = ({
                             </div>
                         </div>
                         <div className="text-xs font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded">
-                            Cyber
+                            {course.cyberHours && course.cyberHours > 0 ? `+Cyber ${course.cyberHours}h` : 'Cyber'}
                         </div>
                     </div>
                 ))}
@@ -246,7 +272,7 @@ const Timetable: React.FC<TimetableProps> = ({
         </div>
       )}
 
-      {/* 모바일 플로팅 버튼 */}
+      {/* Mobile FAB */}
       <button
         onClick={() => setIsSelectionModalOpen(true)}
         className="fixed bottom-20 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-300 z-50 sm:hidden"
@@ -254,7 +280,7 @@ const Timetable: React.FC<TimetableProps> = ({
         <PlusIcon className="w-8 h-8" />
       </button>
 
-      {/* 모달들 */}
+      {/* Modals */}
       <CourseModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
