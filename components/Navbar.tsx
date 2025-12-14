@@ -5,6 +5,10 @@ import ChartBarIcon from './icons/ChartBarIcon';
 import ChatBubbleIcon from './icons/ChatBubbleIcon';
 import { auth } from '../services/firebase';
 import { signOut, User } from 'firebase/auth';
+import BookFilledIcon from './icons/StudyIcon';
+
+
+
 
 interface NavbarProps {
   activeView: AppView;
@@ -14,7 +18,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView, currentUser }) => {
   const navItems = [
-    { id: 'study', label: '스터디', icon: null },
+    { id: 'study', label: '스터디', icon: BookFilledIcon },
 
     { id: 'major', label: '전공', icon: ChartBarIcon },
     { id: 'timetable', label: '홈', icon: HomeIcon },
