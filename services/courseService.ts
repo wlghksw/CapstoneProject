@@ -1,6 +1,5 @@
-// services/courseService.ts
 import { 
-  collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy 
+  collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, limit 
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Course, LectureData, Semester } from '../types';
@@ -14,29 +13,29 @@ class CourseService {
   
   // 전공 강의 가져오기
   async getMajorLectures(dept: string): Promise<LectureData[]> {
-    // 실제로는 학부나 전공으로 필터링
+    // 주의: dept 값이 DB와 정확히 일치해야 합니다. (예: "컴퓨터공학부")
     const q = query(this.lecturesRef, where("dept", "==", dept)); 
-    // 또는 where("major", "!=", "교양") 등의 조건 사용 가능
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as LectureData);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LectureData));
   }
 
-  // 교양 강의 가져오기
+  // [수정됨] 교양 강의 가져오기
   async getGeneralLectures(): Promise<LectureData[]> {
-     // 데이터 구조에 따라 "major"가 "교양"이거나 "type"이 "교양"인 것 조회
-    const q = query(this.lecturesRef, where("major", "==", "교양"));
+    // dept가 "교양대학"인 모든 강의를 가져옵니다.
+    const q = query(this.lecturesRef, where("dept", "==", "교양대학"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as LectureData);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LectureData));
   }
   
-  // 모든 강의 검색 (검색어 기능용)
+  // 검색 기능
   async searchLectures(keyword: string): Promise<LectureData[]> {
-    // Firestore는 full-text search가 제한적이므로, 
-    // 실제 앱에서는 모든 데이터를 가져와서 클라이언트 필터링하거나 Algolia 등을 사용합니다.
-    // 여기서는 간단히 구현합니다.
     const snapshot = await getDocs(this.lecturesRef);
-    const all = snapshot.docs.map(doc => doc.data() as LectureData);
-    return all.filter(l => l.name.includes(keyword) || l.professor.includes(keyword));
+    const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LectureData));
+    // 클라이언트 사이드 필터링 (Firestore는 부분 검색을 지원하지 않음)
+    return all.filter(l => 
+      l.name.includes(keyword) || 
+      l.professor.includes(keyword)
+    );
   }
 
   // --- User Course (내 시간표) 관련 ---
@@ -66,14 +65,13 @@ class CourseService {
     const q = query(
       this.semestersRef, 
       where("userId", "==", userId),
-      orderBy("name") // 이름순 정렬
+      orderBy("name") 
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Semester));
   }
 
   async createSemester(userId: string, name: string): Promise<string> {
-    // 중복 체크
     const q = query(
       this.semestersRef, 
       where("userId", "==", userId),
@@ -81,7 +79,8 @@ class CourseService {
     );
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      throw new Error("이미 존재하는 학기입니다.");
+      // 이미 존재하면 해당 ID 반환
+      return snapshot.docs[0].id;
     }
 
     const docRef = await addDoc(this.semestersRef, {

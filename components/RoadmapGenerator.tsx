@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Major, ROADMAPS, RoadmapCourse } from '../roadmapData';
-import { Course, Semester, LectureData } from '../types'; // Lecture -> LectureData
+import { Course, Semester, LectureData, DayOfWeek } from '../types'; // [수정] DayOfWeek 추가
 import { parseSchedule } from '../utils/timetableParser';
 import { checkTimeConflict } from '../utils/timeConflict';
 import CourseSelectionModal from './CourseSelectionModal';
@@ -23,19 +23,16 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
     isOpen: boolean;
     courseName: string;
     existingCourses: Course[];
-    lectures: LectureData[]; // Lecture -> LectureData
+    lectures: LectureData[];
     semesterId: string;
   } | null>(null);
 
   // Firestore에서 강의 정보 조회
-  const findLecturesInDB = async (courseName: string): Promise<LectureData[]> => { // Lecture -> LectureData
+  const findLecturesInDB = async (courseName: string): Promise<LectureData[]> => {
     const lecturesRef = collection(db, 'lectures');
-    // Firestore 쿼리 시 필드명 주의 (DB에 'name'으로 저장되어 있다면 'name'으로 검색)
-    // 기존 코드에서 'course_name'을 썼다면 DB 필드도 확인 필요. 
-    // 여기서는 types.ts에 맞춰 'name'으로 가정하거나, DB 필드가 'name'이라면 'name' 사용
     const q = query(lecturesRef, where('name', '==', courseName)); 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LectureData)); // Lecture -> LectureData
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LectureData));
   };
 
   const currentRoadmap = useMemo(() => {
@@ -100,33 +97,37 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
 
       if (lectures.length === 1) {
         const lecture = lectures[0];
-        // timetable -> time_text, hours는 그대로
         const schedule = parseSchedule(lecture.time_text, lecture.hours); 
+        
         if (!schedule || !schedule.day) {
-          // timetable -> time_text, course_name -> name
           alert(`${lecture.name}의 시간표 정보를 파싱할 수 없습니다. (시간표: ${lecture.time_text})`);
           continue;
         }
 
         const semesterCourses = courses.filter(c => c.semesterId === semester.id && c.userId === userId);
-        const conflict = checkTimeConflict({ day: schedule.day, startTime: schedule.startTime, endTime: schedule.endTime }, semesterCourses);
+        
+        // [수정] day를 DayOfWeek로 강제 형변환 (as DayOfWeek)
+        const conflict = checkTimeConflict({ 
+            day: schedule.day as DayOfWeek, 
+            startTime: schedule.startTime, 
+            endTime: schedule.endTime 
+        }, semesterCourses);
 
         if (conflict.hasConflict) {
           const conflictNames = conflict.conflictingCourses.map(c => c.name).join(', ');
-          // course_name -> name
           if (!confirm(`${lecture.name}의 시간이 다음 강의와 겹칩니다:\n${conflictNames}\n그래도 추가하시겠습니까?`)) {
             continue;
           }
         }
 
         onAddCourses([{
-          name: lecture.name, // course_name -> name
+          name: lecture.name,
           professor: lecture.professor,
           location: schedule.location || '',
-          day: schedule.day,
+          day: (schedule.day as string),
           startTime: schedule.startTime,
           endTime: schedule.endTime,
-          credits: lecture.credit || 3, // credits -> credit
+          credits: lecture.credit || 3,
           semesterId: semester.id,
         }]);
       } else {
@@ -180,27 +181,25 @@ const RoadmapGenerator: React.FC<RoadmapGeneratorProps> = ({ semesters, courses,
             semesterId: semester.id,
           });
         } else if (lectures.length === 1) {
-            // ... (단일 강의 처리 로직 추가 필요, 위 handleAddToTimetable과 동일하게 구현하거나 함수로 분리 권장)
-            // 여기서는 생략되었으나 실제로는 단일 강의 자동 추가 로직이 필요함.
-            // 아래는 간단한 예시
             const lecture = lectures[0];
             const schedule = parseSchedule(lecture.time_text, lecture.hours);
-             if (schedule && schedule.day) {
-                 onAddCourses([{
-                  name: lecture.name,
-                  professor: lecture.professor,
-                  location: schedule.location || '',
-                  day: schedule.day,
-                  startTime: schedule.startTime,
-                  endTime: schedule.endTime,
-                  credits: lecture.credit || 3,
-                  semesterId: semester.id,
+            if (schedule && schedule.day) {
+                // [수정] 여기서도 conflict 체크를 하거나 그냥 추가 (기존 로직 유지)
+                onAddCourses([{
+                    name: lecture.name,
+                    professor: lecture.professor,
+                    location: schedule.location || '',
+                    day: schedule.day as string, // [수정] string으로 변환
+                    startTime: schedule.startTime,
+                    endTime: schedule.endTime,
+                    credits: lecture.credit || 3,
+                    semesterId: semester.id,
                 }]);
-             }
+            }
 
-          const nextRemaining = remaining.slice(1);
-          setSelectedCourses(new Set(nextRemaining));
-          if (nextRemaining.length > 0) processRemainingCourses(nextRemaining);
+            const nextRemaining = remaining.slice(1);
+            setSelectedCourses(new Set(nextRemaining));
+            if (nextRemaining.length > 0) processRemainingCourses(nextRemaining);
         }
       }
     }

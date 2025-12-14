@@ -1,8 +1,8 @@
-import { DayOfWeek, Course } from '../types';
+import { DayOfWeek } from '../types';
 
 // 파싱된 시간표 정보 인터페이스
 interface ScheduleInfo {
-  day: DayOfWeek | null;
+  day: DayOfWeek | string | null; // DayOfWeek enum 또는 string 허용
   startTime: string;
   endTime: string;
   location: string | null;
@@ -26,95 +26,88 @@ const timeSlots: { [key: string]: { start: string; end: string } } = {
 
 /**
  * 시간표 문자열을 파싱하여 요일, 시작/종료 시간, 장소를 추출합니다.
- * @param timetable - "본부516 : 목2,3" 또는 "본부516 : 목2" 형식의 시간표 문자열
- * @param hours - 강의 시간 (우선순위 높음)
- * @returns {ScheduleInfo | null} 파싱된 시간표 정보 또는 null
  */
 export const parseSchedule = (timetable: string, hours?: number): ScheduleInfo | null => {
-  // 사이버 강의, 비대면 또는 정보 없는 경우
-  if (!timetable || ['사', '비대면', ''].includes(timetable.trim())) {
-    return { day: null, startTime: '', endTime: '', location: timetable.trim() };
+  // 1. [추가됨] 예외 케이스 처리 (nan, null, 빈 문자열)
+  if (!timetable || timetable === 'nan' || timetable.trim() === '') {
+    return { day: null, startTime: '', endTime: '', location: '시간 미지정' };
   }
 
-  // "본부516 : 목2" 또는 "본부516:목2,3" 또는 "목2,3" 형식 파싱
-  const regex = /(?:(.+?)\s*:\s*)?([월화수목금토일])([\d,]+)/;
-  const match = timetable.match(regex);
+  // 2. [추가됨] '별도' 일정 처리
+  if (timetable.includes('별도')) {
+    return { day: null, startTime: '', endTime: '', location: '별도 일정' };
+  }
 
-  if (match) {
-    const location = match[1] ? match[1].trim() : null;
-    const day = match[2] as DayOfWeek;
-    const periods = match[3].split(',').map(p => p.trim());
+  // 3. 사이버 강의 처리
+  if (['사', '비대면'].includes(timetable.trim())) {
+    return { day: null, startTime: '', endTime: '', location: '사이버 강의' };
+  }
 
-    if (periods.length > 0) {
-      const startPeriod = periods[0];
-      const startTime = timeSlots[startPeriod]?.start;
-      let endTime;
+  try {
+    // 4. "본부516 : 목2,3" 또는 "본부516:목2,3" 또는 "목2,3" 형식 파싱
+    // 정규식 설명: (장소 : )? (요일) (숫자와 쉼표)
+    const regex = /(?:(.+?)\s*:\s*)?([월화수목금토일])([\d,]+)/;
+    const match = timetable.match(regex);
 
-      // `hours`가 제공되면 우선적으로 사용
-      if (hours && hours > 0 && startTime) {
-        const startHour = parseInt(startTime.split(':')[0], 10);
-        const endHour = startHour + hours;
-        endTime = `${String(endHour).padStart(2, '0')}:00`;
-      } else {
-        // `hours`가 없으면 기존 방식대로 마지막 교시로 종료시간 계산
-        const endPeriod = periods[periods.length - 1];
-        endTime = timeSlots[endPeriod]?.end;
-      }
+    if (match) {
+      const location = match[1] ? match[1].trim() : null;
+      const day = match[2] as DayOfWeek; // 또는 string
+      const periods = match[3].split(',').map(p => p.trim());
 
-      if (startTime && endTime) {
+      if (periods.length > 0) {
+        // 시작 시간 계산
+        const startPeriod = periods[0];
+        const startSlot = timeSlots[startPeriod];
+        const startTime = startSlot ? startSlot.start : '09:00'; // 기본값 안전장치
+
+        let endTime;
+
+        // `hours`가 제공되면 우선적으로 사용 (정확도 높음)
+        if (hours && hours > 0) {
+          const startHour = parseInt(startTime.split(':')[0], 10);
+          const endHour = startHour + hours;
+          // 09:00 포맷 유지
+          endTime = `${endHour < 10 ? '0' : ''}${endHour}:00`;
+        } else {
+          // `hours`가 없으면 마지막 교시로 종료시간 계산
+          const endPeriod = periods[periods.length - 1];
+          const endSlot = timeSlots[endPeriod];
+          endTime = endSlot ? endSlot.end : '10:00';
+        }
+
         return { day, startTime, endTime, location };
       }
     }
+    
+    // 5. 정규식 매칭 실패 시 (형식이 다른 경우)
+    // 에러를 내지 않고 원본 텍스트를 location에 담아 반환
+    return {
+        day: null, 
+        startTime: '', 
+        endTime: '', 
+        location: timetable // "중강당" 같은 경우 장소로 표시됨
+    };
+
+  } catch (error) {
+    console.warn(`파싱 오류 발생: "${timetable}"`, error);
+    // 오류 발생 시에도 앱이 멈추지 않도록 안전값 반환
+    return { day: null, startTime: '', endTime: '', location: '시간 정보 오류' };
   }
-  
-  // 정규식에 맞지 않는 경우 (e.g., "목4,5")
-  const simpleRegex = /([월화수목금토일])([\d,]+)/;
-  const simpleMatch = timetable.match(simpleRegex);
-  if(simpleMatch) {
-    const day = simpleMatch[1] as DayOfWeek;
-    const periods = simpleMatch[2].split(',').map(p => p.trim());
-    if (periods.length > 0) {
-      const startPeriod = periods[0];
-      const startTime = timeSlots[startPeriod]?.start;
-      let endTime;
-
-      if (hours && hours > 0 && startTime) {
-        const startHour = parseInt(startTime.split(':')[0], 10);
-        const endHour = startHour + hours;
-        endTime = `${String(endHour).padStart(2, '0')}:00`;
-      } else {
-        const endPeriod = periods[periods.length - 1];
-        endTime = timeSlots[endPeriod]?.end;
-      }
-
-      if (startTime && endTime) {
-        return { day, startTime, endTime, location: null };
-      }
-    }
-  }
-
-  console.warn(`시간표 형식을 파싱할 수 없습니다: "${timetable}"`);
-  return null;
 };
 
 /**
- * "화1,2"와 같은 시간표 문자열을 파싱하여 여러 개의 ScheduleInfo 객체로 변환합니다.
- * @param timetable - "본부511:화2" 또는 "공A502:월1,2/본부511:화2" 형식의 시간표 문자열
- * @param hours - 강의 시간
- * @returns {ScheduleInfo[]} 파싱된 시간표 정보 배열
+ * 여러 개의 시간표가 '/'로 구분된 경우 처리
  */
 export const parseMultipleSchedules = (timetable: string, hours?: number): ScheduleInfo[] => {
-  if (!timetable || ['사', '비대면', ''].includes(timetable.trim())) {
-    return [{ day: null, startTime: '', endTime: '', location: timetable.trim() }];
-  }
+  // 예외 처리
+  if (!timetable || timetable === 'nan') return [];
 
-  // "공A502:월1,2/본부511:화2"와 같이 '/'로 구분된 여러 시간표 처리
   const parts = timetable.split('/');
   const schedules: ScheduleInfo[] = [];
 
   parts.forEach(part => {
-    // hours를 parseSchedule로 전달
     const schedule = parseSchedule(part.trim(), hours);
+    // null이 아니고, 의미 있는 데이터일 때만 추가
     if (schedule) {
       schedules.push(schedule);
     }
