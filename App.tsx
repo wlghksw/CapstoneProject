@@ -14,6 +14,9 @@ import SplashScreen from './components/SplashScreen';
 import { courseService } from './services/courseService'; // Service Import
 import { COURSE_COLORS } from './constants';
 
+import StudyBoard from './components/StudyBoard';
+
+
 interface UserProfile {
   initialCredits: number;
 }
@@ -207,6 +210,9 @@ const App: React.FC = () => {
         );
       case 'chatbot':
         return <CourseChatbot />;
+      case 'study':
+        return <StudyBoard />;
+
       case 'registration':
         return (
           <CourseRegistration

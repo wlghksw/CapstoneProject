@@ -29,6 +29,15 @@ export interface LectureData {
   cyber_hours?: number;
 }
 
+
+export interface StudyPost {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  createdAt: string;
+}
+
 // 사용자 시간표에 저장된 과목 정보
 export interface Course {
   id: string;
@@ -61,7 +70,13 @@ export interface Message {
   sender: 'user' | 'ai';
 }
 
-export type AppView = 'timetable' | 'major' | 'chatbot' | 'board' | 'registration';
+export type AppView =
+  | 'timetable'
+  | 'major'
+  | 'chatbot'
+  | 'register'
+  | 'study';   // ⭐ 추가
+
 
 // 고정 학기 목록 상수
 export const PREDEFINED_SEMESTERS = [

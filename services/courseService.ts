@@ -1,6 +1,6 @@
 // services/courseService.ts
-import { 
-  collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy 
+import {
+  collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Course, LectureData, Semester } from '../types';
@@ -11,11 +11,11 @@ class CourseService {
   private semestersRef = collection(db, 'semesters');
 
   // --- Lecture (전체 강의 DB) 관련 ---
-  
+
   // 전공 강의 가져오기
   async getMajorLectures(dept: string): Promise<LectureData[]> {
     // 실제로는 학부나 전공으로 필터링
-    const q = query(this.lecturesRef, where("dept", "==", dept)); 
+    const q = query(this.lecturesRef, where("dept", "==", dept));
     // 또는 where("major", "!=", "교양") 등의 조건 사용 가능
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as LectureData);
@@ -23,12 +23,12 @@ class CourseService {
 
   // 교양 강의 가져오기
   async getGeneralLectures(): Promise<LectureData[]> {
-     // 데이터 구조에 따라 "major"가 "교양"이거나 "type"이 "교양"인 것 조회
+    // 데이터 구조에 따라 "major"가 "교양"이거나 "type"이 "교양"인 것 조회
     const q = query(this.lecturesRef, where("major", "==", "교양"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as LectureData);
   }
-  
+
   // 모든 강의 검색 (검색어 기능용)
   async searchLectures(keyword: string): Promise<LectureData[]> {
     // Firestore는 full-text search가 제한적이므로, 
@@ -43,7 +43,7 @@ class CourseService {
 
   async getUserCourses(userId: string, semesterId: string): Promise<Course[]> {
     const q = query(
-      this.coursesRef, 
+      this.coursesRef,
       where("userId", "==", userId),
       where("semesterId", "==", semesterId)
     );
@@ -64,7 +64,7 @@ class CourseService {
 
   async getUserSemesters(userId: string): Promise<Semester[]> {
     const q = query(
-      this.semestersRef, 
+      this.semestersRef,
       where("userId", "==", userId),
       orderBy("name") // 이름순 정렬
     );
@@ -75,7 +75,7 @@ class CourseService {
   async createSemester(userId: string, name: string): Promise<string> {
     // 중복 체크
     const q = query(
-      this.semestersRef, 
+      this.semestersRef,
       where("userId", "==", userId),
       where("name", "==", name)
     );
