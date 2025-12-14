@@ -5,6 +5,7 @@ import CourseModal from './CourseModal';
 import SemesterListModal from './SemesterListModal';
 import CourseSelectionModal from './CourseSelectionModal';
 import PlusIcon from './icons/PlusIcon';
+import PencilIcon from './icons/PencilIcon';
 import ListIcon from './icons/ListIcon';
 import { courseService } from '../services/courseService';
 
@@ -18,6 +19,7 @@ interface TimetableProps {
   userId: string | null;
   onSwitchSemester: (id: string) => void;
   onRefresh: () => void;
+  onNavigateToRegistration: () => void; // 추가
 }
 
 const Timetable: React.FC<TimetableProps> = ({ 
@@ -28,7 +30,8 @@ const Timetable: React.FC<TimetableProps> = ({
   semesters,
   userId,
   onSwitchSemester,
-  onRefresh
+  onRefresh,
+  onNavigateToRegistration
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSemesterListOpen, setIsSemesterListOpen] = useState(false);
@@ -48,7 +51,8 @@ const Timetable: React.FC<TimetableProps> = ({
     if (!activeSemesterId || !userId) return;
     try {
       const courses = await courseService.getUserCourses(userId, activeSemesterId);
-      setCurrentCourses(courses);
+      // isTemp가 true인 과목(수강신청 장바구니용)은 제외하고 표시
+      setCurrentCourses(courses.filter(c => !c.isTemp));
     } catch (e) {
       console.error(e);
     }
@@ -147,6 +151,12 @@ const Timetable: React.FC<TimetableProps> = ({
         </button>
         
         <div className="flex space-x-2">
+          <button
+            onClick={onNavigateToRegistration}
+            className="text-emerald-500 text-sm font-medium flex items-center hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors"
+          >
+            <PencilIcon className="w-4 h-4 mr-1" /> 수강 신청
+          </button>
             <button 
                 onClick={() => setIsSelectionModalOpen(true)}
                 className="text-blue-500 text-sm font-medium flex items-center hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1.5 rounded-full transition-colors"

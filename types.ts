@@ -52,7 +52,11 @@ export interface Course {
   type?: string;
   
   // [추가됨] 사이버 강의 시간
-  cyberHours?: number; 
+  cyberHours?: number;
+  
+  // [추가됨] 수강신청 관련 필드
+  isTemp?: boolean;   // 수강신청 장바구니용 임시 과목 여부
+  registrationStatus?: 'basket' | 'registered'; // 장바구니 vs 신청완료 상태
 }
 
 export interface Message {
@@ -61,7 +65,7 @@ export interface Message {
   sender: 'user' | 'ai';
 }
 
-export type AppView = 'timetable' | 'major' | 'chatbot' | 'profile';
+export type AppView = 'timetable' | 'major' | 'chatbot' | 'profile' | 'registration';
 
 export const PREDEFINED_SEMESTERS = [
   "1학년 1학기", "1학년 2학기",

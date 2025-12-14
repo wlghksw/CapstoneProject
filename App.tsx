@@ -6,6 +6,7 @@ import MajorRecommender from './components/MajorRecommender';
 import CourseChatbot from './components/CourseChatbot';
 import CreditTracker from './components/CreditTracker';
 import ProfileEdit from './components/ProfileEdit';
+import CourseRegistration from './components/CourseRegistration';
 import { auth, db } from './services/firebase'; // auth는 상태 체크용, db는 userProfile용
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -83,7 +84,8 @@ const App: React.FC = () => {
         const courses = await courseService.getUserCourses(userId, sem.id);
         totalCourses = [...totalCourses, ...courses];
       }
-      setAllCourses(totalCourses);
+      // 학점 계산 시 임시 과목(isTemp)은 제외
+      setAllCourses(totalCourses.filter(c => !c.isTemp));
 
     } catch (error) {
       console.error("Failed to load initial data:", error);
@@ -206,6 +208,7 @@ const App: React.FC = () => {
               onSaveCourse={handleSaveCourse} 
               onDeleteCourse={handleDeleteCourse}
               onAddSemester={handleAddSemester}
+              onNavigateToRegistration={() => setActiveView('registration')}
             />
           </div>
         );
@@ -228,6 +231,14 @@ const App: React.FC = () => {
             onBack={() => setActiveView('timetable')}
           />
         );
+      case 'registration':
+        return (
+          <CourseRegistration
+            userId={currentUser.uid}
+            semesterId={activeSemesterId}
+            onBack={() => setActiveView('timetable')}
+          />
+        );
       default:
         return null;
     }
@@ -235,8 +246,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
-      <Navbar activeView={activeView} setActiveView={setActiveView} currentUser={currentUser} />
-      <main className="container max-w-3xl mx-auto px-4 pb-24 pt-20">
+      {activeView !== 'registration' && <Navbar activeView={activeView} setActiveView={setActiveView} currentUser={currentUser} />}
+      <main className={`mx-auto ${activeView === 'registration' ? 'w-full' : 'container max-w-3xl px-4 pb-24 pt-20'}`}>
         {renderContent()}
       </main>
     </div>

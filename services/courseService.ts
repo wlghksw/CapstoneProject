@@ -59,6 +59,10 @@ class CourseService {
     await deleteDoc(doc(this.coursesRef, courseId));
   }
 
+  async updateCourse(courseId: string, data: Partial<Course>): Promise<void> {
+    await updateDoc(doc(this.coursesRef, courseId), data);
+  }
+
   // --- Semester 관련 ---
 
   async getUserSemesters(userId: string): Promise<Semester[]> {
@@ -93,4 +97,5 @@ class CourseService {
 }
 
 export const courseService = new CourseService();
+
 
