@@ -1,0 +1,84 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# Dependencies
+node_modules/
+package-lock.json
+
+# Python
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Cache
+.cache/
+.npm/
+.pnpm-store/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Media files
+*.jpg
+*.jpeg
+*.gif
+*.png
+*.mp4
+*.mp3
+
+# Documents
+*.txt
+*.docx
+*.pdf
+
+# Python virtual environment (openai_api)
+openai_api/venv/
