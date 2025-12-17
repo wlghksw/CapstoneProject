@@ -5,6 +5,7 @@ import HomeIcon from './icons/HomeIcon';
 import ChartBarIcon from './icons/ChartBarIcon';
 import ChatBubbleIcon from './icons/ChatBubbleIcon';
 import UserIcon from './icons/UserIcon';
+import StudyIcon from './icons/StudyIcon';
 import { auth } from '../services/firebase'; // Import auth
 import { signOut, User } from 'firebase/auth'; // Import signOut and User type
 
@@ -16,6 +17,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ activeView, setActiveView, currentUser }) => {
   const navItems = [
+    { id: 'study', label: '스터디', icon: StudyIcon },
     { id: 'major', label: '전공', icon: ChartBarIcon },
     { id: 'timetable', label: '홈', icon: HomeIcon },
     { id: 'chatbot', label: 'AI 채팅', icon: ChatBubbleIcon },

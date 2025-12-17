@@ -7,6 +7,7 @@ import CourseChatbot from './components/CourseChatbot';
 import CreditTracker from './components/CreditTracker';
 import ProfileEdit from './components/ProfileEdit';
 import CourseRegistration from './components/CourseRegistration';
+import StudyBoard from './components/StudyBoard';
 import { auth, db } from './services/firebase'; // auth는 상태 체크용, db는 userProfile용
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -224,6 +225,8 @@ const App: React.FC = () => {
         );
       case 'chatbot':
         return <CourseChatbot />;
+      case 'study':
+        return <StudyBoard />;
       case 'profile':
         return (
           <ProfileEdit
