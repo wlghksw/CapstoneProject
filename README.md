@@ -2,6 +2,8 @@
 
 백석대학교 학생을 위한 종합 학사 관리 시스템
 
+![ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/d027ced5-3326-4577-bec2-da41dc3d6ffb)
+
 ## 프로젝트 개요
 
 Uni-Planner는 백석대학교 학생들을 위한 웹 기반 학사 관리 플랫폼입니다. 시간표 관리, 수강신청, 전공 추천, AI 챗봇, 스터디 그룹 등 다양한 기능을 제공합니다.
